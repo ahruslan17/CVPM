@@ -1,0 +1,13 @@
+ultralytics
+opencv-python
+numpy
+shapely
+fastapi
+uvicorn[standard]
+pydantic
+pyyaml
+prometheus-client
+pandas
+tqdm
+seaborn
+python-telegram-bot>=20.0
