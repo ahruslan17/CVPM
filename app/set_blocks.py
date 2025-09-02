@@ -1,6 +1,7 @@
 import cv2
 import json
 import numpy as np
+from camera import capture_frame
 
 polygons = []  # список всех блоков
 current_polygon = []  # текущий полигон
@@ -64,7 +65,8 @@ def draw_polygon(event, x, y, flags, param):
         current_polygon.clear()
 
 
-img = cv2.imread("test_parking_night.jpg")
+capture_frame("frame.jpg")
+img = cv2.imread("frame.jpg")
 cv2.namedWindow("Polygon Labeling")
 cv2.setMouseCallback("Polygon Labeling", draw_polygon)
 

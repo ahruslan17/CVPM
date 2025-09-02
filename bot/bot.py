@@ -12,6 +12,7 @@ from telegram.ext import (
 from app.detector import ParkingDetectorWithSpace
 import os
 from dotenv import load_dotenv
+from app.camera import capture_frame
 
 # --- Настройка логирования ---
 logging.basicConfig(
@@ -42,7 +43,8 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id, "Анализирую парковку...")
 
     # Загружаем изображение парковки
-    frame = cv2.imread("test_parking_night.jpg")
+    capture_frame("frame.jpg")
+    frame = cv2.imread("frame.jpg")
     if frame is None:
         await context.bot.send_message(chat_id, "Не удалось загрузить изображение.")
         return
@@ -59,7 +61,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id, report)
 
     # Сохраняем аннотированное изображение
-    output_path = "annotated_parking.jpg"
+    output_path = "annotated_frame.jpg"
     cv2.imwrite(output_path, annotated_frame)
 
     # Отправляем фото
