@@ -1,8 +1,8 @@
 import cv2
-from detector import ParkingDetectorWithSpace
+from app.detector import ParkingDetectorWithSpace
 import json
 
-frame = cv2.imread("test_parking_night.jpg")
+frame = cv2.imread("frame.jpg")
 detector = ParkingDetectorWithSpace(
     blocks_json="parking_blocks.json", model_path="yolov9c.pt", confidence=0.1
 )

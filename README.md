@@ -1,136 +1,124 @@
 # Computer Vision Parking Monitoring
 
-ENGLISH
-
-Short pitch
+## ENGLISH
+### Short pitch
 Computer-vision pipeline that detects cars on a parking image, evaluates availability per user‑defined parking blocks, and returns results with annotations and a Telegram bot interface.
 
-Key features
-- Interactive parking-block labeling on a reference frame: left-click to add points, right-click to close polygon, mouse wheel to zoom, press “s” to save to parking_blocks.json [1].
-- YOLO-based car detection; per-block occupancy via polygon intersection logic (counts a car if ≥ ~80% of its box area is inside the block) [6][9].
-- Duplicate detection suppression by IoU and near-containment thresholds for stability [2].
-- High-resolution webcam snapshot with best-available resolution auto-selection (DSHOW backend on Windows) [4].
-- Turnkey scripts to run detection and visualize colored blocks and labels; JSON outputs for downstream use [3][7].
-- Telegram bot: on command/button, captures a new frame and runs analysis; uses TOKEN from .env [8].
+### Key features
+- Start by running set_blocks.py: it grabs a fresh snapshot from the webcam and opens the interactive labeling UI; draw parking blocks (polygons) where availability will be checked. You specify the maximum number of cars (max_cars) for each block during labeling.
+- YOLO-based car detection; per-block occupancy via polygon intersection logic (a car counts for a block if ≥ ~80% of its box area lies inside the polygon).
+- Duplicate detection suppression by IoU and near-containment thresholds for stability.
+- High-resolution webcam snapshot with best-available resolution auto-selection (DSHOW backend on Windows).
+- Turnkey script to run detection and produce an annotated image + JSON outputs for downstream use (test_detection.py, renamed from main.py).
+- Telegram bot: on command or button press, captures a new frame from the camera, runs analysis, and returns a text summary plus an annotated image; TOKEN is loaded from .env.
 
-Architecture and modules
-- set_blocks.py — UI to draw polygons over an image and save them to parking_blocks.json. Controls are printed on screen (LMB add point, RMB close, wheel zoom, “s” save) [1].
+### Architecture and modules
+- set_blocks.py — UI to draw polygons and save them to parking_blocks.json; on start it takes a webcam snapshot and then lets you label blocks. Controls on screen: LMB add point, RMB close polygon, mouse wheel zoom, “s” save.
 - utils.py — Geometry helpers:
-  - can_place_new_car: counts cars in a block by checking centroids against the polygon [2].
-  - suppress_overlaps: removes duplicate boxes based on IoU and containment [2].
+  - can_place_new_car: counts cars in a block by checking centroids against the polygon.
+  - suppress_overlaps: removes duplicate boxes based on IoU and containment.
 - detector.py — ParkingDetectorWithSpace:
-  - Filters YOLO detections to cars; a car counts for a block if intersection_area / car_area ≥ 0.8; deduplicates boxes; availability if cars_count < max_cars; draws overlay and status text [6].
-- main.py — Batch runner: loads frame.jpg, runs detector, saves parking_status.json, shows annotated window [7].
-- visualize_parking.py — Reads parking_blocks.json and parking_status.json and draws colored polygons and block labels over a test image [3].
-- camera.py — capture_frame selects the highest supported resolution from a preset list, warms up the camera, saves frame.jpg [4].
-- config.py — Centralized constants: camera index, frame size, optional ROI, model path, confidence threshold [5].
-- bot.py — Telegram bot (python-telegram-bot v20+). On /start or button press, captures a frame and analyzes blocks; TOKEN is loaded from .env [8][9].
+  - Filters YOLO detections to cars; a car counts for a block if intersection_area / car_area ≥ 0.8; deduplicates boxes; availability if cars_count < max_cars; draws overlays and status text.
+- test_detection.py — Batch runner to get the annotated result using your chosen model (renamed from main.py).
+- camera.py — capture_frame selects the highest supported resolution from a preset list, warms up the camera, and saves frame.jpg.
+- config.py — Centralized constants: camera index, frame size, optional ROI, model path, confidence threshold.
+- bot.py — Telegram bot (python-telegram-bot v20+). In live mode, by a Telegram trigger (/start or button) it captures a current photo, processes it, and returns the result.
 
-Installation
-- Requirements: Python 3.10+, a webcam for live capture (optional), GPU recommended for YOLO.
-- Install dependencies (Ultralytics, OpenCV, Shapely, Telegram Bot API, etc.) [9]:
-    pip install -r requirements.txt
+### Installation
+- Requirements: Python 3.10+, a webcam (for live capture), GPU recommended for YOLO.
+- Install dependencies (Ultralytics, OpenCV, Shapely, Telegram Bot API, etc.):
+  - pip install -r requirements.txt
 - YOLO weights:
-  - Place a .pt model file and ensure the code points to it (e.g., yolov9e.pt in main.py or yolov9c.pt in bot.py) [7][8].
+  - Place a .pt model file and ensure the code points to it (e.g., your chosen weights in test_detection.py and/or in bot.py).
 
-Configuration
-- Edit config.py to set camera parameters, ROI, model path, and confidence threshold [5].
-- Ensure parking_blocks.json includes an id, polygon points, and max_cars per block (detector expects max_cars; visualization uses blocks data) [1][6].
+### Configuration
+- Edit config.py to set camera parameters, ROI, model path, and confidence threshold.
+- Ensure parking_blocks.json includes an id, polygon points, and max_cars per block (the detector expects max_cars).
 
-Quick start
-1) Capture a reference frame for labeling
-    python app/camera.py
-   The script auto-selects the highest working resolution and saves frame.jpg [4].
-2) Label parking blocks on the frame
-    python set_blocks.py
-   Follow on-screen controls to create polygons; press “s” to save parking_blocks.json [1].
-3) Run detection on a frame
-    python main.py
-   Produces parking_status.json and shows the annotated image [7].
-4) Telegram bot (optional)
-- Create a .env with TOKEN, then:
-    python bot.py
-- Use /start or the “Show parking status” button to run analysis [8].
+### Quick start
+1) Label the parking blocks (and create a fresh snapshot)
+   - python set_blocks.py
+   - The script takes a new photo from the webcam, opens the labeling UI, and lets you draw polygons. When closing a polygon, you’ll be prompted for max_cars for that block. Press “s” to save parking_blocks.json.
+2) Run detection on a still frame
+   - python test_detection.py
+   - Produces parking_status.json and shows/saves an annotated image with colored blocks and counts.
+3) Live mode via Telegram (optional)
+   - Create a .env with your TOKEN, then:
+     - python bot.py
+   - Use /start or the “Show parking status” button to trigger capture + analysis and receive a text summary with an annotated image.
 
-Data formats
-- parking_blocks.json: list of blocks with id and polygon points; include max_cars for capacity logic [1][6].
-- parking_status.json: dict keyed by block_id with fields cars_count, can_add_car, max_cars (from detector) [6][7].
+### Data formats
+- parking_blocks.json: list of blocks with fields id, points (polygon vertices), and max_cars.
+- parking_status.json: dict keyed by block_id with fields cars_count, can_add_car, max_cars (emitted by the detector).
 
-How it works
-- Detection: YOLO finds cars; a car is assigned to a block if ≥80% of its box lies inside the polygon; duplicate boxes are suppressed with IoU/containment checks. A block is available if cars_count < max_cars [6][2].
+### How it works
+- Detection: YOLO finds cars; a car is assigned to a block if ≥80% of its bounding-box area lies inside the polygon. Duplicate boxes are suppressed using IoU and containment checks. A block is available if cars_count < max_cars.
 
-Notes
-- visualize_parking.py expects boolean-like status per block; the detector emits a detailed dict. Map can_add_car to your visualization logic if needed [3][6].
-- camera.py uses CAP_DSHOW on Windows; adjust capture backend on Linux/macOS if required [4].
-- Align model paths across files: config.py uses .pth, while main.py and bot.py use .pt. Choose one and update references consistently [5][7][8].
+### Notes
+- camera.py uses CAP_DSHOW on Windows; on Linux/macOS you may need to change the capture backend.
+- Align model paths across files consistently (config.py may use .pth; test_detection.py/bot.py typically use .pt).
 
-Tech stack
-- Ultralytics YOLO, OpenCV, Shapely, Python Telegram Bot, FastAPI (present in requirements for potential API), NumPy [9].
+### Tech stack
+- Ultralytics YOLO, OpenCV, Shapely, Python Telegram Bot, FastAPI (in requirements for potential API), NumPy
 
 
-РУССКИЙ
+## РУССКИЙ
+### Краткое описание
+Пайплайн компьютерного зрения, который детектирует автомобили на изображении парковки, вычисляет доступность по заданным пользователем полигонам и возвращает результаты с аннотациями и через интерфейс Telegram-бота.
 
-Краткое описание
-Пайплайн компьютерного зрения для оценки доступности парковочных мест: детектирует автомобили на изображении, вычисляет занятость по пользовательским полигонам и возвращает результат с аннотациями и через Telegram-бота.
+### Ключевые возможности
+- Старт с запуска set_blocks.py: скрипт делает свежий снимок с веб-камеры и открывает интерфейс разметки; выделите полигоны блоков, внутри которых будет проверяться доступность. Максимальное число машин (max_cars) задаётся при разметке каждого блока.
+- Детекция машин на базе YOLO; занятость блочных полигонов по доле площади бокса внутри полигона (засчитываем, если ≥ ~80%).
+- Подавление дублей детекций по IoU и почти полной вложенности для стабильности.
+- Снимок с веб-камеры в максимально возможном разрешении с авто‑выбором (бэкенд DSHOW на Windows).
+- Скрипт пакетного запуска для получения аннотированного результата и JSON (test_detection.py, новое имя вместо main.py).
+- Telegram-бот: по триггеру из Telegram (команда /start или кнопка) делает актуальный снимок, обрабатывает и возвращает результат (текст + аннотированное изображение); TOKEN берётся из .env.
 
-Ключевые возможности
-- Интерактивная разметка блоков парковки: ЛКМ — добавить точку, ПКМ — замкнуть полигон, колесо мыши — зум, “s” — сохранить в parking_blocks.json [1].
-- Детекция автомобилей на YOLO; учёт занятости по пересечению боксов с полигонами (машина засчитывается, если ≥ ~80% площади бокса внутри блока) [6][9].
-- Подавление дублей детекций по IoU и почти полной вложенности [2].
-- Снимок с веб-камеры в максимально возможном разрешении (DSHOW на Windows) [4].
-- Скрипты для запуска детекции и визуализации раскрашенных полигонов; выводы в JSON [3][7].
-- Telegram-бот: по команде/кнопке делает снимок и запускает анализ; токен берётся из .env [8].
-
-Архитектура и модули
-- set_blocks.py — инструмент рисования полигонов и сохранения в parking_blocks.json. Подсказки по управлению выводятся на экран (ЛКМ, ПКМ, колесо, “s”) [1].
+### Архитектура и модули
+- set_blocks.py — интерфейс для рисования полигонов и сохранения в parking_blocks.json; при старте делает снимок с камеры и затем позволяет размечать блоки. Управление: ЛКМ — добавить точку, ПКМ — замкнуть полигон, колесо — зум, “s” — сохранить.
 - utils.py — геометрические утилиты:
-  - can_place_new_car: считает машины по центроидам внутри полигона [2].
-  - suppress_overlaps: удаляет дубли по IoU и вложенности [2].
+  - can_place_new_car: считает машины по центроидам, попавшим внутрь полигона.
+  - suppress_overlaps: удаляет дубли по IoU и вложенности.
 - detector.py — ParkingDetectorWithSpace:
-  - Фильтрует детекции до класса «машина»; засчитывает авто блоку при доле площади ≥ 0.8; убирает дубли; считает свободно, если cars_count < max_cars; рисует контуры и статус [6].
-- main.py — пакетный запуск: читает frame.jpg, запускает детектор, сохраняет parking_status.json, показывает окно с аннотацией [7].
-- visualize_parking.py — читает parking_blocks.json и parking_status.json, рисует полигоны и подписи статуса [3].
-- camera.py — capture_frame выбирает максимально доступное разрешение, прогревает камеру, сохраняет frame.jpg [4].
-- config.py — параметры камеры, ROI, путь к модели, порог уверенности [5].
-- bot.py — Telegram-бот (python-telegram-bot v20+). По /start или кнопке снимает кадр и анализирует; TOKEN загружается из .env [8][9].
+  - Фильтрует YOLO‑детекции до класса «машина»; засчитывает авто блоку при intersection_area / car_area ≥ 0.8; убирает дубли; свободно, если cars_count < max_cars; рисует контуры и статус.
+- test_detection.py — пакетный запуск для получения аннотированного результата выбранной моделью (переименован из main.py).
+- camera.py — capture_frame выбирает максимально доступное разрешение, прогревает камеру и сохраняет frame.jpg.
+- config.py — параметры камеры, ROI, путь к модели, порог уверенности.
+- bot.py — Telegram‑бот (python‑telegram‑bot v20+). В live‑режиме по триггеру из Telegram делает снимок «здесь и сейчас», обрабатывает и возвращает результат.
 
-Установка
-- Требования: Python 3.10+, веб-камера (для live), для YOLO желательно наличие GPU.
-- Установка зависимостей [9]:
-    pip install -r requirements.txt
+### Установка
+- Требования: Python 3.10+, веб‑камера (для live), желательно наличие GPU для YOLO.
+- Установка зависимостей (Ultralytics, OpenCV, Shapely, Telegram Bot API и др.):
+  - pip install -r requirements.txt
 - Веса YOLO:
-  - Поместите .pt модель и укажите путь в коде (например, yolov9e.pt в main.py или yolov9c.pt в bot.py) [7][8].
+  - Поместите файл модели .pt и пропишите путь к нему (в test_detection.py и/или в bot.py).
 
-Настройка
-- Отредактируйте config.py: камера, размер кадра, при необходимости ROI, путь к модели, порог уверенности [5].
-- Убедитесь, что parking_blocks.json содержит id, точки полигона и max_cars для каждого блока (детектор использует max_cars; визуализация читает блоки) [1][6].
+### Настройка
+- Отредактируйте config.py: параметры камеры, ROI, путь к модели, порог уверенности.
+- Убедитесь, что в parking_blocks.json у каждого блока есть id, точки полигона и max_cars (детектор использует max_cars).
 
-Быстрый старт
-1) Снимок эталонного кадра
-    python app/camera.py
-   Скрипт автоматически выбирает наивысшее рабочее разрешение и сохраняет frame.jpg [4].
-2) Разметка парковочных блоков
-    python set_blocks.py
-   Следуйте подсказкам на экране; “s” — сохранить parking_blocks.json [1].
-3) Запуск детекции на кадре
-    python main.py
-   Получите parking_status.json и окно с аннотацией [7].
-4) Telegram-бот (опционально)
-- Создайте .env с TOKEN и запустите:
-    python bot.py
-- Используйте /start или кнопку «Показать статус парковки» [8].
+### Быстрый старт
+1) Разметьте блоки парковки (и сделайте свежий снимок)
+   - python set_blocks.py
+   - Скрипт делает новый кадр с веб‑камеры, открывает UI разметки и позволяет рисовать полигоны. При замыкании полигона укажите max_cars. Нажмите “s” для сохранения parking_blocks.json.
+2) Запустите детекцию на статичном кадре
+   - python test_detection.py
+   - Скрипт создаст parking_status.json и покажет/сохранит аннотированное изображение с раскрашенными блоками и счётчиками.
+3) Live‑режим через Telegram (опционально)
+   - Создайте .env с вашим TOKEN и запустите:
+     - python bot.py
+   - Используйте /start или кнопку «Показать статус парковки», чтобы сделать снимок + анализ и получить текстовый отчёт с аннотированным изображением.
 
-Форматы данных
-- parking_blocks.json: список блоков с id и точками полигона; добавьте max_cars для логики вместимости [1][6].
-- parking_status.json: словарь по block_id с полями cars_count, can_add_car, max_cars (из детектора) [6][7].
+### Форматы данных
+- parking_blocks.json: список блоков с полями id, points (вершины полигона), max_cars.
+- parking_status.json: словарь по block_id с полями cars_count, can_add_car, max_cars (формируется детектором).
 
-Как работает логика
-- YOLO находит машины; авто засчитывается блоку, если ≥80% площади бокса лежит внутри полигона; дубли подавляются по IoU/вложенности; свободно, если cars_count < max_cars [6][2].
+### Как работает логика
+- YOLO находит машины; авто засчитывается блоку, если ≥80% площади его бокса внутри полигона. Дубли подавляются по IoU и вложенности. Блок считается доступным, если cars_count < max_cars.
 
-Примечания
-- visualize_parking.py ожидает булев статус; детектор отдаёт словарь. Для раскраски можно использовать поле can_add_car [3][6].
-- camera.py использует CAP_DSHOW (Windows); на Linux/macOS при необходимости смените бэкенд [4].
-- Согласуйте пути к модели: в config.py — .pth, в main.py/bot.py — .pt. Выберите единый формат и обновите ссылки [5][7][8].
+### Примечания
+- camera.py использует CAP_DSHOW на Windows; на Linux/macOS при необходимости смените бэкенд захвата.
+- Приведите пути к весам модели к единому виду (в config.py может быть .pth; в test_detection.py/bot.py обычно .pt).
 
-Технологии
-- Ultralytics YOLO, OpenCV, Shapely, Python Telegram Bot, FastAPI (в requirements — потенциал API), NumPy [9].
+### Технологии
+- Ultralytics YOLO, OpenCV, Shapely, Python Telegram Bot, FastAPI (в requirements — для потенциального API), NumPy

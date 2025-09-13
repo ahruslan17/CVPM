@@ -23,9 +23,6 @@ def can_place_new_car(block_poly: Polygon, cars_boxes: list, max_cars: int):
     return cars_in_block < max_cars
 
 
-import shapely
-
-
 def suppress_overlaps(boxes, iou_threshold=0.5, contain_threshold=0.9):
     """
     Убираем дубликаты по IoU и по вложенности

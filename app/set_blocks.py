@@ -1,6 +1,7 @@
 import cv2
 import json
 import numpy as np
+from camera import capture_frame
 
 polygons = []  # список всех блоков
 current_polygon = []  # текущий полигон
@@ -79,6 +80,7 @@ def mouse_wheel(event, x, y, flags, param):
 
 
 # загрузка изображения
+# capture_frame("frame.jpg")
 img = cv2.imread("frame.jpg")
 cv2.namedWindow("Polygon Labeling", cv2.WINDOW_NORMAL)
 cv2.setMouseCallback("Polygon Labeling", draw_polygon)
